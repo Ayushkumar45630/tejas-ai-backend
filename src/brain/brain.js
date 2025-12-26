@@ -1,7 +1,7 @@
 ﻿import { getContext, saveContext } from "./contextMemory.js";
 import { getUser, saveUser } from "./userMemory.js";
-import { getWeather } from "../weather.js";
-import { getNews } from "../news.js";
+import { getWeatherByLatLon } from "../weather.js";
+import { getTopNews } from "../news.js";
 
 /* ---------- Helpers ---------- */
 function detectName(message) {
@@ -21,7 +21,9 @@ export function needsLiveSearch(message) {
         "kab", "date", "latest", "abhi", "today",
         "current", "news", "score", "result", "price", "auction"
     ];
-    return keywords.some(word => message.toLowerCase().includes(word));
+    return keywords.some(word =>
+        message.toLowerCase().includes(word)
+    );
 }
 
 /* ---------- MAIN BRAIN ---------- */
@@ -29,25 +31,34 @@ export async function brainReply(userMessage, userId = "default", extra = {}) {
 
     /* 🔥 APP OPEN GREETING */
     if (userMessage === "start") {
-        let reply = "नमस्ते! मैं Tejas AI हूँ। 👋";
+        let reply = "नमस्ते! मैं Tejas AI हूँ। 👋\n";
 
+        /* 🌦️ Weather */
         if (extra.lat && extra.lon) {
             try {
-                const weather = await getWeather(extra.lat, extra.lon);
-                reply += `\n\n🌤️ आज का मौसम:\n${weather}`;
+                const weather = await getWeatherByLatLon(extra.lat, extra.lon);
+                if (weather) {
+                    reply += `\n🌦️ आज ${weather.city} में तापमान ${weather.temp}°C है और मौसम ${weather.condition} है।\n`;
+                }
             } catch {
-                reply += "\n\n🌤️ मौसम की जानकारी उपलब्ध नहीं है।";
+                reply += "\n🌦️ मौसम की जानकारी उपलब्ध नहीं है।\n";
             }
         }
 
+        /* 📰 News */
         try {
-            const news = await getNews();
-            reply += `\n\n📰 आज की मुख्य खबरें:\n${news}`;
+            const news = await getTopNews();
+            if (news && news.length > 0) {
+                reply += "\n📰 आज की मुख्य खबरें:\n";
+                news.forEach((title, i) => {
+                    reply += `${i + 1}. ${title}\n`;
+                });
+            }
         } catch {
-            reply += "\n\n📰 खबरें लोड नहीं हो पाईं।";
+            reply += "\n📰 खबरें लोड नहीं हो पाईं।\n";
         }
 
-        reply += "\n\nआज मैं आपकी किस तरह मदद कर सकता हूँ? 😊";
+        reply += "\nआज मैं आपकी किस तरह मदद कर सकता हूँ? 😊";
         return reply;
     }
 
