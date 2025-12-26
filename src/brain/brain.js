@@ -1,5 +1,7 @@
 ﻿import { getContext, saveContext } from "./contextMemory.js";
 import { getUser, saveUser } from "./userMemory.js";
+import { getWeather } from "../weather.js";
+import { getNews } from "../news.js";
 
 /* ---------- Helpers ---------- */
 function detectName(message) {
@@ -14,33 +16,46 @@ function detectLanguage(message) {
 }
 
 /* ---------- LIVE SEARCH DECISION ---------- */
-// 🧠 Brain decide karega: Google search chahiye ya nahi
 export function needsLiveSearch(message) {
     const keywords = [
-        "kab",
-        "date",
-        "latest",
-        "abhi",
-        "today",
-        "current",
-        "news",
-        "score",
-        "result",
-        "price",
-        "auction"
+        "kab", "date", "latest", "abhi", "today",
+        "current", "news", "score", "result", "price", "auction"
     ];
-
-    return keywords.some(word =>
-        message.toLowerCase().includes(word)
-    );
+    return keywords.some(word => message.toLowerCase().includes(word));
 }
 
 /* ---------- MAIN BRAIN ---------- */
-export function buildBrainPrompt(userMessage, userId = "default") {
+export async function brainReply(userMessage, userId = "default", extra = {}) {
+
+    /* 🔥 APP OPEN GREETING */
+    if (userMessage === "start") {
+        let reply = "नमस्ते! मैं Tejas AI हूँ। 👋";
+
+        if (extra.lat && extra.lon) {
+            try {
+                const weather = await getWeather(extra.lat, extra.lon);
+                reply += `\n\n🌤️ आज का मौसम:\n${weather}`;
+            } catch {
+                reply += "\n\n🌤️ मौसम की जानकारी उपलब्ध नहीं है।";
+            }
+        }
+
+        try {
+            const news = await getNews();
+            reply += `\n\n📰 आज की मुख्य खबरें:\n${news}`;
+        } catch {
+            reply += "\n\n📰 खबरें लोड नहीं हो पाईं।";
+        }
+
+        reply += "\n\nआज मैं आपकी किस तरह मदद कर सकता हूँ? 😊";
+        return reply;
+    }
+
+    /* ---------- NORMAL AI FLOW ---------- */
+
     const context = getContext();
     const user = getUser(userId);
 
-    // 🧠 Auto-save memory
     const name = detectName(userMessage);
     if (name) saveUser(userId, { name });
 

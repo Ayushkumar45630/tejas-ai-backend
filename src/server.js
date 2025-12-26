@@ -17,7 +17,7 @@ app.get("/", (req, res) => {
 
 app.post("/chat", async (req, res) => {
     try {
-        const { message, lat, lon, userId } = req.body;
+        const { message, userId, lat, lon } = req.body;
 
         if (!message) {
             return res.status(400).json({
@@ -26,16 +26,18 @@ app.post("/chat", async (req, res) => {
             });
         }
 
-        // 🧠 tejasReply now returns { reply, ttsText }
-        const result = await tejasReply(
+        // 🔥 PASS EXTRA DATA (lat, lon) TO BRAIN
+        const replyText = await tejasReply(
             message,
-            lat,
-            lon,
-            userId || "default"
+            userId || "default",
+            { lat, lon }
         );
 
-        // ✅ Directly send result
-        res.json(result);
+        // ✅ SAME TEXT FOR CHAT + TTS
+        res.json({
+            reply: replyText,
+            ttsText: replyText
+        });
 
     } catch (error) {
         console.error("❌ Backend Error:", error);

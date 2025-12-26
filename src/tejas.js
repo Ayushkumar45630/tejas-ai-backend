@@ -9,29 +9,28 @@ import {
     needsLiveSearch
 } from "./brain/brain.js";
 
-// 🔎 Live Google Search (SerpApi)
+// 🔎 Live Google Search
 import { liveGoogleSearch } from "./brain/liveSearch.js";
 
 // 🗣️ TTS Clean utility
 import { cleanTextForTTS } from "./utils/ttsClean.js";
 
 /**
- * Tejas AI – Daily Briefing + Brain + Live Search + Clean TTS
+ * Tejas AI – FINAL production-safe reply function
+ * 🔥 ALWAYS RETURNS STRING
  */
-export async function tejasReply(message, lat, lon, userId = "default") {
+export async function tejasReply(message, userId = "default", extra = {}) {
 
-    // 🔥 DAILY BRIEF ON START
+    const { lat, lon } = extra;
+
+    /* 🔥 DAILY BRIEF ON APP START */
     if (message === "start") {
         const reply = await dailyBrief(lat, lon);
         updateBrain(message, reply);
-
-        return {
-            reply,                     // UI text
-            ttsText: cleanTextForTTS(reply) // 🗣️ clean TTS text
-        };
+        return cleanTextForTTS(reply);
     }
 
-    // 🔎 LIVE GOOGLE SEARCH (High priority)
+    /* 🔎 LIVE GOOGLE SEARCH (high priority) */
     if (needsLiveSearch(message)) {
         const results = await liveGoogleSearch(message);
 
@@ -40,73 +39,70 @@ export async function tejasReply(message, lat, lon, userId = "default") {
 
             results.forEach((r, i) => {
                 reply += `${i + 1}. ${r.title}\n`;
-                reply += `${r.snippet}\n`;
-                reply += `Source: ${r.link}\n\n`;
+                reply += `${r.snippet}\n\n`;
             });
 
             updateBrain(message, reply);
-
-            return {
-                reply,
-                ttsText: cleanTextForTTS(reply)
-            };
+            return cleanTextForTTS(reply);
         }
     }
 
-    // 🧠 Brain + LLM fallback
+    /* 🧠 LLM FALLBACK */
     const brainPrompt = buildBrainPrompt(message, userId);
     const reply = await callDeepSeek(brainPrompt);
 
     updateBrain(message, reply);
-
-    return {
-        reply,
-        ttsText: cleanTextForTTS(reply)
-    };
+    return cleanTextForTTS(reply);
 }
 
 /* =====================================================
-   📰 DAILY BRIEF (WEATHER + NEWS)
+   📰 DAILY BRIEF (GREETING + WEATHER + NEWS)
    ===================================================== */
 async function dailyBrief(lat, lon) {
 
-    // ⏰ Time greeting
     const hour = new Date().getHours();
     let timeGreeting =
         hour < 12 ? "Good morning ☀️" :
             hour < 17 ? "Good afternoon 🌤️" :
                 "Good evening 🌆";
 
-    let message = `${timeGreeting}\n`;
+    let message = `${timeGreeting}\n\n`;
 
-    // 👤 Intro
-    message += "Main Tejas AI hoon, jise Ayush Mishra ne design kiya hai.\n";
+    message += "Main Tejas AI hoon, jise Ayush Mishra ne design kiya hai.\n\n";
 
-    // 🌦️ Weather
+    /* 🌦️ Weather */
     if (lat && lon) {
-        const weather = await getWeatherByLatLon(lat, lon);
-        if (weather) {
-            message += `Aaj ${weather.city} me temperature ${weather.temp}°C hai aur ${weather.condition} weather hai.\n`;
+        try {
+            const weather = await getWeatherByLatLon(lat, lon);
+            if (weather) {
+                message += `🌦️ Aaj ${weather.city} me temperature ${weather.temp}°C hai aur ${weather.condition} weather hai.\n\n`;
+            }
+        } catch {
+            message += "🌦️ Weather info abhi available nahi hai.\n\n";
         }
     }
 
-    // 📰 News
-    const news = await getTopNews();
-    if (news.length > 0) {
-        message += "\nAaj ki badi khabrein:\n";
-        news.forEach((title, i) => {
-            message += `${i + 1}. ${title}\n`;
-        });
+    /* 📰 News */
+    try {
+        const news = await getTopNews();
+        if (news.length > 0) {
+            message += "📰 Aaj ki badi khabrein:\n";
+            news.forEach((title, i) => {
+                message += `${i + 1}. ${title}\n`;
+            });
+            message += "\n";
+        }
+    } catch {
+        message += "📰 News abhi load nahi ho paayi.\n\n";
     }
 
-    // ❓ Help
-    message += "\nBatao, main kya madad kar sakta hoon?";
+    message += "Batao, main kya madad kar sakta hoon? 😊";
 
     return message;
 }
 
 /* =====================================================
-   🤖 DEEPSEEK CHAT (LLM FALLBACK)
+   🤖 DEEPSEEK CHAT (LLM)
    ===================================================== */
 async function callDeepSeek(prompt) {
     const response = await axios.post(
@@ -130,7 +126,7 @@ async function callDeepSeek(prompt) {
             headers: {
                 "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
                 "Content-Type": "application/json",
-                "HTTP-Referer": "http://localhost",
+                "HTTP-Referer": "https://tejas-ai-backend-production.up.railway.app",
                 "X-Title": "Tejas AI"
             }
         }
