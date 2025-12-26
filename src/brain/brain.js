@@ -21,49 +21,11 @@ export function needsLiveSearch(message) {
         "kab", "date", "latest", "abhi", "today",
         "current", "news", "score", "result", "price", "auction"
     ];
-    return keywords.some(word =>
-        message.toLowerCase().includes(word)
-    );
+    return keywords.some(word => message.toLowerCase().includes(word));
 }
 
-/* ---------- MAIN BRAIN ---------- */
-export async function brainReply(userMessage, userId = "default", extra = {}) {
-
-    /* 🔥 APP OPEN GREETING */
-    if (userMessage === "start") {
-        let reply = "नमस्ते! मैं Tejas AI हूँ। 👋\n";
-
-        /* 🌦️ Weather */
-        if (extra.lat && extra.lon) {
-            try {
-                const weather = await getWeatherByLatLon(extra.lat, extra.lon);
-                if (weather) {
-                    reply += `\n🌦️ आज ${weather.city} में तापमान ${weather.temp}°C है और मौसम ${weather.condition} है।\n`;
-                }
-            } catch {
-                reply += "\n🌦️ मौसम की जानकारी उपलब्ध नहीं है।\n";
-            }
-        }
-
-        /* 📰 News */
-        try {
-            const news = await getTopNews();
-            if (news && news.length > 0) {
-                reply += "\n📰 आज की मुख्य खबरें:\n";
-                news.forEach((title, i) => {
-                    reply += `${i + 1}. ${title}\n`;
-                });
-            }
-        } catch {
-            reply += "\n📰 खबरें लोड नहीं हो पाईं।\n";
-        }
-
-        reply += "\nआज मैं आपकी किस तरह मदद कर सकता हूँ? 😊";
-        return reply;
-    }
-
-    /* ---------- NORMAL AI FLOW ---------- */
-
+/* ---------- BUILD PROMPT (REQUIRED EXPORT) ---------- */
+export function buildBrainPrompt(userMessage, userId = "default") {
     const context = getContext();
     const user = getUser(userId);
 
@@ -112,6 +74,46 @@ Final Answer:
 `;
 
     return prompt;
+}
+
+/* ---------- MAIN BRAIN ---------- */
+export async function brainReply(userMessage, userId = "default", extra = {}) {
+
+    /* 🔥 APP OPEN GREETING */
+    if (userMessage === "start") {
+        let reply = "नमस्ते! मैं Tejas AI हूँ। 👋\n";
+
+        /* 🌦️ Weather */
+        if (extra.lat && extra.lon) {
+            try {
+                const weather = await getWeatherByLatLon(extra.lat, extra.lon);
+                if (weather) {
+                    reply += `\n🌦️ आज ${weather.city} में तापमान ${weather.temp}°C है और मौसम ${weather.condition} है।\n`;
+                }
+            } catch {
+                reply += "\n🌦️ मौसम की जानकारी उपलब्ध नहीं है।\n";
+            }
+        }
+
+        /* 📰 News */
+        try {
+            const news = await getTopNews();
+            if (news && news.length > 0) {
+                reply += "\n📰 आज की मुख्य खबरें:\n";
+                news.forEach((title, i) => {
+                    reply += `${i + 1}. ${title}\n`;
+                });
+            }
+        } catch {
+            reply += "\n📰 खबरें लोड नहीं हो पाईं।\n";
+        }
+
+        reply += "\nआज मैं आपकी किस तरह मदद कर सकता हूँ? 😊";
+        return reply;
+    }
+
+    // 🔁 Fallback handled in tejas.js
+    return "";
 }
 
 /* ---------- CONTEXT UPDATE ---------- */
